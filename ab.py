@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+import os
 
 # ---------- تنظیمات ----------
 TOKEN = "8981742192:AAHC8z6u6GifXgMIafvzv0tn_Q2LV1mM2bQ"
@@ -825,4 +826,4 @@ def set_webhook():
 
 if __name__ == '__main__':
     set_webhook()
-    app.run(host='0.0.0.0', port=10000)
+app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
