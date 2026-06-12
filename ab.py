@@ -12,7 +12,11 @@ import os
 # ---------- تنظیمات ----------
 TOKEN = "8981742192:AAHC8z6u6GifXgMIafvzv0tn_Q2LV1mM2bQ"
 BOT_USERNAME = "nevergivup_bot"
-BASE_URL = "https://barcelona-l5tu.onrender.com"
+
+# ⚠️ این آدرس را به آدرس واقعی ربات در Railway/Render تغییر دهید
+# مثال Railway: https://arnold.up.railway.app
+# مثال Render: https://your-app.onrender.com
+BASE_URL = "https://arnold.up.railway.app"   # ← این را عوض کن
 
 # ---------- کانال الزامی ----------
 REQUIRED_CHANNEL = "@film01385"
@@ -24,7 +28,7 @@ ZP_VERIFY_URL = "https://api.zarinpal.com/pg/v4/payment/verify.json"
 ZP_START_PAY = "https://www.zarinpal.com/pg/StartPay/"
 
 bot = telebot.TeleBot(TOKEN)
-app = Flask(__name__)
+app = Flask(__name__)   # تایپو رفع شد
 
 # ---------- دیتابیس ----------
 conn = sqlite3.connect("/tmp/tracker.db", check_same_thread=False)
@@ -80,7 +84,6 @@ c.execute("""CREATE TABLE IF NOT EXISTS user_texts (
 conn.commit()
 
 # ---------- دیکشنری برای ذخیره موقت اطلاعات ارسال پیام ناشناس ----------
-# key: user_id (فرستنده = owner), value: clicker_id (گیرنده)
 anonymous_temp = {}
 
 # ========== بررسی عضویت در کانال ==========
@@ -140,7 +143,7 @@ def main_panel(user_id, message_id=None):
     else:
         bot.send_message(user_id, panel_text, reply_markup=keyboard, parse_mode='Markdown')
 
-# ---------- توابع اشتراک و پرداخت (بدون تغییر) ----------
+# ---------- توابع اشتراک و پرداخت ----------
 def has_active_subscription(user_id):
     c.execute("SELECT expires_at FROM subscriptions WHERE user_id = ?", (user_id,))
     row = c.fetchone()
@@ -350,7 +353,7 @@ def handle_get_my_link(message):
 def copy_link_callback(call):
     bot.answer_callback_query(call.id, "✅ لینک با موفقیت کپی شد! (روی لینک نگه دارید و کپی کنید)", show_alert=True)
 
-# ---------- دکمه‌های پنل (بدون تغییر) ----------
+# ---------- دکمه‌های پنل ----------
 @bot.message_handler(func=lambda message: message.text == "💰 خرید اشتراک پرو")
 def handle_buy_subscription(message):
     user_id = message.from_user.id
@@ -473,24 +476,20 @@ def handle_help(message):
     hide_keyboard = ReplyKeyboardRemove()
     bot.send_message(user_id, help_text, reply_markup=keyboard, parse_mode='Markdown')
 
-# ========== پیام ناشناس رایگان (بدون نیاز به اشتراک) ==========
+# ========== پیام ناشناس رایگان ==========
 @bot.callback_query_handler(func=lambda call: call.data.startswith("anon_"))
 def anonymous_message(call):
-    # استخراج clicker_id و owner_id از دیتا
     _, clicker_id, owner_id = call.data.split("_")
     clicker_id = int(clicker_id)
     owner_id = int(owner_id)
     user_id = call.from_user.id
     
-    # فقط صاحب لینک (owner) می‌تواند پیام بفرستد
     if user_id != owner_id:
         bot.answer_callback_query(call.id, "این دکمه فقط برای صاحب لینک قابل استفاده است!", show_alert=True)
         return
     
-    # ذخیره موقت اطلاعات برای ارسال پیام
     anonymous_temp[user_id] = clicker_id
     
-    # حذف کیبورد اینلاین و نمایش پیام راهنما
     try:
         bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
     except:
@@ -508,19 +507,16 @@ def anonymous_message(call):
         reply_markup=cancel_keyboard,
         parse_mode='Markdown'
     )
-    # ثبت مرحله بعد برای دریافت متن
     bot.register_next_step_handler_by_chat_id(user_id, receive_anonymous_message, clicker_id, user_id)
     bot.answer_callback_query(call.id)
 
 def receive_anonymous_message(message, clicker_id, owner_id):
     user_id = message.from_user.id
-    # بررسی اینکه آیا هنوز در دیکشنری هست (انصراف نداده)
     if user_id not in anonymous_temp:
         return
     
     if message.text:
         anonymous_text = message.text
-        # ارسال پیام ناشناس برای clicker
         try:
             bot.send_message(
                 clicker_id,
@@ -544,7 +540,6 @@ def receive_anonymous_message(message, clicker_id, owner_id):
     else:
         bot.send_message(user_id, "❌ لطفاً فقط متن ارسال کنید. پیام ناشناس ارسال نشد.", parse_mode='Markdown')
     
-    # پاک کردن دیکشنری و بازگشت به پنل
     anonymous_temp.pop(user_id, None)
     main_panel(user_id)
 
@@ -559,7 +554,7 @@ def cancel_anonymous(call):
     bot.send_message(user_id, "❌ عملیات ارسال پیام ناشناس لغو شد.", parse_mode='Markdown')
     main_panel(user_id)
 
-# ========== دکمه‌های دیگر (تله، پرداخت، و ...) بدون تغییر ==========
+# ========== دکمه‌های تله و پرداخت ==========
 @bot.callback_query_handler(func=lambda call: call.data.startswith("cancel_"))
 def cancel_report_payment_page(call):
     _, code, clicker_id = call.data.split("_")
@@ -646,7 +641,7 @@ def back_to_panel_inline(call):
     main_panel(call.from_user.id)
     bot.answer_callback_query(call.id)
 
-# ========== ۴ دکمه دیگر (بیوگرافی، پیوی، عکس) با بررسی اشتراک (باقی می‌مانند) ==========
+# ========== ۴ دکمه دیگر (بیوگرافی، پیوی، عکس) با بررسی اشتراک ==========
 def check_subscription_and_forward(call, feature_name):
     user_id = call.from_user.id
     if not has_active_subscription(user_id):
@@ -821,9 +816,23 @@ def index():
     return "ربات آنلاین است", 200
 
 def set_webhook():
-    bot.set_webhook(url=f"{BASE_URL}/webhook")
-    print("✅ Webhook set")
+    # حذف webhook قبلی و تنظیم مجدد
+    bot.remove_webhook()
+    time.sleep(1)
+    webhook_url = f"{BASE_URL}/webhook"
+    result = bot.set_webhook(url=webhook_url)
+    if result:
+        print(f"✅ Webhook set successfully to {webhook_url}")
+    else:
+        print(f"❌ Failed to set webhook to {webhook_url}")
 
+# ---------- نقطه ورود اصلی ----------
 if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 8080))
+    
+    # تنظیم webhook (آدرس BASE_URL باید درست باشد)
     set_webhook()
-app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+    
+    # اجرای سرور Flask
+    print(f"🚀 Starting Flask server on port {port}...")
+    app.run(host='0.0.0.0', port=port)
